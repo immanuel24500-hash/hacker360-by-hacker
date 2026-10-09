@@ -1,0 +1,455 @@
+#!/bin/bash
+# ============================================
+#  Hacker360 - Security Lab (Educational)
+#  100+ Tools Launcher for Kali Linux (WSL)
+# ============================================
+
+VERSION="1.1"
+
+RED="\033[31m"; GREEN="\033[32m"; YELLOW="\033[33m"
+CYAN="\033[36m"; WHITE="\033[37m"; RESET="\033[0m"
+
+banner() {
+    clear
+    echo -e "${GREEN}"
+    echo "  ██╗  ██╗ █████╗  ██████╗██╗  ██╗███████╗██████╗ ███████╗ ██████╗ ██████╗ "
+    echo "  ██║  ██║██╔══██╗██╔════╝██║  ██║██╔════╝██╔══██╗██╔════╝██╔═══██╗██╔══██╗"
+    echo "  ███████║███████║██║     ███████║█████╗  ██████╔╝█████╗  ██║   ██║██████╔╝"
+    echo "  ██╔══██║██╔══██║██║     ██╔══██║██╔══╝  ██╔══██╗██╔══╝  ██║   ██║██╔═══╝ "
+    echo "  ██║  ██║██║  ██║╚██████╗██║  ██║███████╗██║  ██║███████╗╚██████╔╝██║     "
+    echo "  ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═╝     "
+    echo -e "${WHITE}        Security Lab v${VERSION} — Educational Use Only ${RESET}\n"
+}
+
+install_missing() {
+    local missing=()
+    for t in "$@"; do
+        command -v "$t" &>/dev/null || missing+=("$t")
+    done
+    if [ ${#missing[@]} -gt 0 ]; then
+        echo -e "${YELLOW}[*] Installing: ${missing[*]}${RESET}"
+        sudo apt update -qq
+        sudo apt install -y "${missing[@]}"
+    fi
+}
+
+pause() { echo ""; read -rp "Press Enter to continue..."; }
+
+get_target() {
+    read -rp "Enter target (IP/URL/domain): " TARGET
+    if [ -z "$TARGET" ]; then
+        echo -e "${RED}[!] No target entered.${RESET}"; sleep 1; return 1
+    fi
+    return 0
+}
+
+# ============================================
+#  1. INFORMATION GATHERING
+# ============================================
+menu_recon() {
+    banner
+    cat <<'EOF'
+  [1]  nmap          - Network scanner
+  [2]  whois         - Domain info
+  [3]  dig           - DNS lookup
+  [4]  dnsenum       - DNS enumeration
+  [5]  theharvester  - Email/subdomain OSINT
+  [6]  sublist3r     - Subdomain enumeration
+  [7]  whatweb       - Website fingerprinting
+  [8]  wafw00f       - WAF detection
+  [9]  fierce        - DNS scanner
+  [10] recon-ng      - Web recon framework
+  [11] sherlock      - Username OSINT
+  [12] dmitry        - Deepmagic info gathering
+  [13] hping3        - Packet craft/analysis
+  [14] netdiscover   - Network host discovery
+  [15] arp-scan      - ARP scanning
+  [16] fping         - Fast ping sweep
+  [17] masscan       - Mass port scanner
+  [18] cewl          - Custom wordlist generator
+  [19] dnsrecon      - DNS recon
+  [20] amass         - Attack surface mapping
+  [0]  Back
+EOF
+    read -rp "Select: " c
+    case $c in
+        1) install_missing nmap; get_target && nmap -sV -T4 "$TARGET" ;;
+        2) install_missing whois; get_target && whois "$TARGET" ;;
+        3) install_missing dnsutils; get_target && dig ANY "$TARGET" ;;
+        4) install_missing dnsenum; get_target && dnsenum "$TARGET" ;;
+        5) install_missing theharvester; get_target && theharvester -d "$TARGET" -b all ;;
+        6) install_missing sublist3r; get_target && sublist3r -d "$TARGET" ;;
+        7) install_missing whatweb; get_target && whatweb "$TARGET" ;;
+        8) install_missing wafw00f; get_target && wafw00f "https://$TARGET" ;;
+        9) install_missing fierce; get_target && fierce --domain "$TARGET" ;;
+        10) install_missing recon-ng; echo "Run: recon-ng"; ;;
+        11) install_missing sherlock; read -rp "Username: " u; [ -n "$u" ] && sherlock "$u" ;;
+        12) install_missing dmitry; get_target && dmitry -winse "$TARGET" ;;
+        13) install_missing hping3; get_target && sudo hping3 -S -p 80 "$TARGET" -c 5 ;;
+        14) install_missing netdiscover; sudo netdiscover -r 192.168.1.0/24 ;;
+        15) install_missing arp-scan; sudo arp-scan --localnet ;;
+        16) install_missing fping; get_target && fping -g "$TARGET" 2>/dev/null ;;
+        17) install_missing masscan; get_target && sudo masscan "$TARGET" -p1-65535 --rate=1000 ;;
+        18) install_missing cewl; get_target && cewl "https://$TARGET" -d 2 -m 5 ;;
+        19) install_missing dnsrecon; get_target && dnsrecon -d "$TARGET" ;;
+        20) install_missing amass; get_target && amass enum -d "$TARGET" ;;
+        0) return ;;
+        *) echo -e "${RED}Invalid${RESET}"; sleep 1 ;;
+    esac
+    pause
+}
+
+# ============================================
+#  2. WEB APPLICATION TESTING
+# ============================================
+menu_web() {
+    banner
+    cat <<'EOF'
+  [1]  nikto         - Web server scanner
+  [2]  sqlmap        - SQL injection
+  [3]  dirb          - Directory brute-force
+  [4]  gobuster      - Dir/DNS busting
+  [5]  ffuf          - Fast web fuzzer
+  [6]  wfuzz         - Web fuzzer
+  [7]  dirsearch     - Web path discovery
+  [8]  wpscan        - WordPress scanner
+  [9]  joomscan      - Joomla scanner
+  [10] droopescan    - Drupal scanner
+  [11] burpsuite     - Web proxy suite (GUI)
+  [12] skipfish      - Web security scanner
+  [13] wapiti        - Web vuln scanner
+  [14] commix        - Command injection
+  [15] xsser         - XSS scanner
+  [16] httpx         - Fast http prober
+  [17] nuclei        - Vuln scanner (templates)
+  [18] feroxbuster   - Content discovery
+  [19] sslscan       - SSL/TLS scanner
+  [20] whatweb       - Fingerprinting
+  [0]  Back
+EOF
+    read -rp "Select: " c
+    case $c in
+        1) install_missing nikto; get_target && nikto -h "$TARGET" ;;
+        2) install_missing sqlmap; get_target && echo "Run: sqlmap -u '$TARGET' --batch" ;;
+        3) install_missing dirb; get_target && dirb "http://$TARGET" ;;
+        4) install_missing gobuster; get_target && gobuster dir -u "http://$TARGET" -w /usr/share/wordlists/dirb/common.txt ;;
+        5) install_missing ffuf; get_target && ffuf -u "http://$TARGET/FUZZ" -w /usr/share/wordlists/dirb/common.txt ;;
+        6) install_missing wfuzz; get_target && wfuzz -c -z file,/usr/share/wordlists/dirb/common.txt "http://$TARGET/FUZZ" ;;
+        7) install_missing dirsearch; get_target && dirsearch -u "http://$TARGET" ;;
+        8) install_missing wpscan; get_target && wpscan --url "http://$TARGET" ;;
+        9) install_missing joomscan; get_target && joomscan -u "http://$TARGET" ;;
+        10) install_missing droopescan; get_target && droopescan scan drupal -u "http://$TARGET" ;;
+        11) install_missing burpsuite; echo "Launch manually: burpsuite"; ;;
+        12) install_missing skipfish; get_target && skipfish -o /tmp/sf "http://$TARGET" ;;
+        13) install_missing wapiti; get_target && wapiti -u "http://$TARGET" ;;
+        14) install_missing commix; get_target && commix -u "http://$TARGET" ;;
+        15) install_missing xsser; get_target && xsser --url "http://$TARGET" ;;
+        16) install_missing httpx-toolkit; get_target && httpx-toolkit -u "$TARGET" ;;
+        17) install_missing nuclei; get_target && nuclei -u "http://$TARGET" ;;
+        18) install_missing feroxbuster; get_target && feroxbuster -u "http://$TARGET" ;;
+        19) install_missing sslscan; get_target && sslscan "$TARGET" ;;
+        20) install_missing whatweb; get_target && whatweb "$TARGET" ;;
+        0) return ;;
+        *) echo -e "${RED}Invalid${RESET}"; sleep 1 ;;
+    esac
+    pause
+}
+
+# ============================================
+#  3. PASSWORD / AUTH TESTING
+# ============================================
+menu_password() {
+    banner
+    cat <<'EOF'
+  [1]  hydra         - Login brute-forcer
+  [2]  john          - Password cracker
+  [3]  hashcat       - GPU hash cracker
+  [4]  medusa        - Parallel login brute-forcer
+  [5]  ncrack        - Network auth cracker
+  [6]  crunch        - Wordlist generator
+  [7]  hashid        - Hash identifier
+  [8]  ophcrack      - Windows password recovery (GUI)
+  [9]  maskprocessor - Wordlist gen with masks
+  [10] patator       - Multi-service brute-forcer
+  [0]  Back
+EOF
+    read -rp "Select: " c
+    case $c in
+        1) install_missing hydra; read -rp "Target IP: " ip; read -rp "Service (ssh/ftp/http-get): " s; [ -n "$ip" ] && hydra -l admin -P /usr/share/wordlists/rockyou.txt "$ip" "$s" ;;
+        2) install_missing john; read -rp "Hash file: " f; [ -n "$f" ] && john "$f" ;;
+        3) install_missing hashcat; read -rp "Hash file: " f; [ -n "$f" ] && hashcat -m 0 "$f" /usr/share/wordlists/rockyou.txt ;;
+        4) install_missing medusa; read -rp "Target: " t; [ -n "$t" ] && medusa -h "$t" -U users.txt -P pass.txt -M ssh ;;
+        5) install_missing ncrack; read -rp "Target: " t; [ -n "$t" ] && ncrack "$t" ;;
+        6) install_missing crunch; crunch 6 8 abcdefgh -o /tmp/wordlist.txt && echo "Saved: /tmp/wordlist.txt" ;;
+        7) install_missing hashid; read -rp "Hash: " h; [ -n "$h" ] && hashid "$h" ;;
+        8) install_missing ophcrack; echo "Launch manually: ophcrack"; ;;
+        9) install_missing maskprocessor; mp64 '?l?l?l?l?d?d' -o /tmp/list.txt && echo "Saved: /tmp/list.txt" ;;
+        10) install_missing patator; patator --help | head -20 ;;
+        0) return ;;
+        *) echo -e "${RED}Invalid${RESET}"; sleep 1 ;;
+    esac
+    pause
+}
+
+# ============================================
+#  4. NETWORK / TRAFFIC ANALYSIS
+# ============================================
+menu_network() {
+    banner
+    cat <<'EOF'
+  [1]  wireshark     - Packet analyzer (GUI)
+  [2]  tshark        - CLI packet analyzer
+  [3]  tcpdump       - Packet sniffer
+  [4]  dsniff        - Network sniffing suite
+  [5]  ettercap      - MITM framework (text)
+  [6]  bettercap     - MITM framework (modern)
+  [7]  urlsnarf      - URL sniffer
+  [8]  netstat       - Network connections
+  [9]  ss            - Socket statistics
+  [10] ncat          - Netcat (modern)
+  [11] socat         - Multipurpose relay
+  [12] tcpflow       - TCP flow recorder
+  [13] hping3        - Packet crafting
+  [14] traceroute    - Route tracing
+  [15] mtr           - Combined ping/traceroute
+  [0]  Back
+EOF
+    read -rp "Select: " c
+    case $c in
+        1) install_missing wireshark; echo "Launch manually: wireshark"; ;;
+        2) install_missing tshark; sudo tshark -i eth0 -c 100 ;;
+        3) install_missing tcpdump; sudo tcpdump -i eth0 -n -c 100 ;;
+        4) install_missing dsniff; sudo dsniff -i eth0 ;;
+        5) install_missing ettercap-text-only; echo "Example: sudo ettercap -T -M arp:remote /TARGET// /GATEWAY//"; ;;
+        6) install_missing bettercap; echo "Run manually: sudo bettercap"; ;;
+        7) install_missing dsniff; sudo urlsnarf -i eth0 ;;
+        8) netstat -tuln ;;
+        9) ss -tuln ;;
+        10) install_missing ncat; ncat -h ;;
+        11) install_missing socat; socat -h | head -5 ;;
+        12) install_missing tcpflow; sudo tcpflow -i eth0 -c ;;
+        13) install_missing hping3; get_target && sudo hping3 -S -p 80 "$TARGET" -c 5 ;;
+        14) install_missing traceroute; get_target && traceroute "$TARGET" ;;
+        15) install_missing mtr-tiny; get_target && mtr "$TARGET" ;;
+        0) return ;;
+        *) echo -e "${RED}Invalid${RESET}"; sleep 1 ;;
+    esac
+    pause
+}
+
+# ============================================
+#  5. VULNERABILITY ANALYSIS
+# ============================================
+menu_vuln() {
+    banner
+    cat <<'EOF'
+  [1]  nikto         - Web scanner
+  [2]  nmap --script vuln - NSE vuln scripts
+  [3]  lynis         - System audit
+  [4]  chkrootkit    - Rootkit detection
+  [5]  rkhunter      - Rootkit hunter
+  [6]  searchsploit  - Exploit-DB search
+  [7]  nikto+ssl     - Nikto with SSL
+  [8]  legion        - Semi-auto vuln scanner (GUI)
+  [9]  gvm (OpenVAS) - Full vuln scanner
+  [10] unix-privesc-check - Priv esc checker
+  [0]  Back
+EOF
+    read -rp "Select: " c
+    case $c in
+        1) install_missing nikto; get_target && nikto -h "$TARGET" ;;
+        2) install_missing nmap; get_target && nmap --script vuln "$TARGET" ;;
+        3) install_missing lynis; sudo lynis audit system ;;
+        4) install_missing chkrootkit; sudo chkrootkit ;;
+        5) install_missing rkhunter; sudo rkhunter --check --skippassword ;;
+        6) install_missing exploitdb; read -rp "Search term: " s; [ -n "$s" ] && searchsploit "$s" ;;
+        7) install_missing nikto; get_target && nikto -h "https://$TARGET" -ssl ;;
+        8) install_missing legion; echo "Launch manually: legion"; ;;
+        9) echo "Setup: sudo apt install gvm && sudo gvm-setup (takes a long time)"; ;;
+        10) install_missing unix-privesc-check; sudo unix-privesc-check standard ;;
+        0) return ;;
+        *) echo -e "${RED}Invalid${RESET}"; sleep 1 ;;
+    esac
+    pause
+}
+
+# ============================================
+#  6. EXPLOITATION / FRAMEWORKS
+# ============================================
+menu_exploit() {
+    banner
+    cat <<'EOF'
+  [1]  metasploit    - Exploit framework
+  [2]  msfvenom      - Payload generator (list payloads)
+  [3]  searchsploit  - Local exploit search
+  [4]  routersploit  - Router/IoT exploitation
+  [5]  crackmapexec  - Network swiss army knife
+  [6]  exploitdb     - Browse exploit database
+  [0]  Back
+EOF
+    read -rp "Select: " c
+    case $c in
+        1) install_missing metasploit-framework; echo "Run manually: msfconsole"; ;;
+        2) install_missing metasploit-framework; msfvenom -l payloads | head -40 ;;
+        3) install_missing exploitdb; read -rp "Search: " s; [ -n "$s" ] && searchsploit "$s" ;;
+        4) install_missing routersploit; echo "Run manually: rsf"; ;;
+        5) install_missing netexec; get_target && nexec smb "$TARGET" 2>/dev/null || echo "Run manually: netexec (formerly crackmapexec)" ;;
+        6) install_missing exploitdb; ls /usr/share/exploitdb/ 2>/dev/null || echo "ExploitDB not found"; ;;
+        0) return ;;
+        *) echo -e "${RED}Invalid${RESET}"; sleep 1 ;;
+    esac
+    pause
+}
+
+# ============================================
+#  7. FORENSICS
+# ============================================
+menu_forensics() {
+    banner
+    cat <<'EOF'
+  [1]  autopsy       - Digital forensics (GUI)
+  [2]  sleuthkit     - Forensics toolkit
+  [3]  volatility    - Memory forensics
+  [4]  foremost      - File carver
+  [5]  binwalk       - Firmware analysis
+  [6]  steghide      - Steganography
+  [7]  exiftool      - Metadata extractor
+  [8]  strings       - Extract strings
+  [9]  photorec      - File recovery
+  [10] bulk-extractor - Data extractor
+  [0]  Back
+EOF
+    read -rp "Select: " c
+    case $c in
+        1) install_missing autopsy; echo "Launch manually: autopsy"; ;;
+        2) install_missing sleuthkit; read -rp "Disk image: " f; [ -n "$f" ] && fls -l "$f" ;;
+        3) install_missing volatility3; read -rp "Memory dump: " f; [ -n "$f" ] && vol -f "$f" windows.info ;;
+        4) install_missing foremost; read -rp "Image file: " f; [ -n "$f" ] && foremost -i "$f" -o /tmp/out ;;
+        5) install_missing binwalk; read -rp "Binary: " f; [ -n "$f" ] && binwalk "$f" ;;
+        6) install_missing steghide; read -rp "Image: " f; [ -n "$f" ] && steghide info "$f" ;;
+        7) install_missing libimage-exiftool-perl; read -rp "File: " f; [ -n "$f" ] && exiftool "$f" ;;
+        8) read -rp "File: " f; [ -n "$f" ] && strings "$f" | head -50 ;;
+        9) install_missing testdisk; echo "Launch manually: sudo photorec"; ;;
+        10) install_missing bulk-extractor; read -rp "Image: " f; [ -n "$f" ] && bulk_extractor "$f" -o /tmp/be ;;
+        0) return ;;
+        *) echo -e "${RED}Invalid${RESET}"; sleep 1 ;;
+    esac
+    pause
+}
+
+# ============================================
+#  8. WIRELESS (WSL mein limited)
+# ============================================
+menu_wireless() {
+    banner
+    echo -e "${YELLOW}[!] Note: WSL mein wireless adapter direct access nahi hota.${RESET}"
+    echo -e "${YELLOW}    Ye tools sirf native Kali/VM with USB wifi adapter par kaam karenge.${RESET}\n"
+    cat <<'EOF'
+  [1]  aircrack-ng   - Wi-Fi cracking suite
+  [2]  wifite        - Automated Wi-Fi
+  [3]  kismet        - Wireless detector
+  [4]  reaver        - WPS attack
+  [5]  airmon-ng     - Monitor mode
+  [0]  Back
+EOF
+    read -rp "Select: " c
+    case $c in
+        1) install_missing aircrack-ng; aircrack-ng --help | head -20 ;;
+        2) install_missing wifite; echo "Run: sudo wifite (needs native Wi-Fi)"; ;;
+        3) install_missing kismet; echo "Run: sudo kismet"; ;;
+        4) install_missing reaver; echo "Run: sudo reaver -i wlan0mon"; ;;
+        5) install_missing aircrack-ng; sudo airmon-ng ;;
+        0) return ;;
+        *) echo -e "${RED}Invalid${RESET}"; sleep 1 ;;
+    esac
+    pause
+}
+
+# ============================================
+#  9. MISC / REPORTING
+# ============================================
+menu_misc() {
+    banner
+    cat <<'EOF'
+  [1]  curl          - HTTP client
+  [2]  wget          - Downloader
+  [3]  git           - Version control
+  [4]  python3       - Scripting
+  [5]  openssl       - SSL toolkit
+  [6]  netcat        - Network utility
+  [7]  tmux          - Terminal multiplexer
+  [8]  pipal         - Password analysis
+  [9]  whoami/uname  - System info
+  [10] john-the-ripper help
+  [0]  Back
+EOF
+    read -rp "Select: " c
+    case $c in
+        1) install_missing curl; curl -I "http://example.com" ;;
+        2) install_missing wget; wget --help | head -5 ;;
+        3) install_missing git; git --version ;;
+        4) python3 --version ;;
+        5) install_missing openssl; get_target && timeout 5 openssl s_client -connect "$TARGET":443 </dev/null 2>&1 | head -30 ;;
+        6) install_missing netcat-openbsd; nc -h 2>&1 | head -5 ;;
+        7) install_missing tmux; echo "Run manually: tmux"; ;;
+        8) install_missing pipal; read -rp "Password file: " f; [ -n "$f" ] && pipal "$f" ;;
+        9) whoami; uname -a ;;
+        10) install_missing john; john --help | head -20 ;;
+        0) return ;;
+        *) echo -e "${RED}Invalid${RESET}"; sleep 1 ;;
+    esac
+    pause
+}
+
+# ============================================
+#  MAIN MENU
+# ============================================
+while true; do
+    banner
+    cat <<'EOF'
+  [1]  Information Gathering (20)
+  [2]  Web App Testing (20)
+  [3]  Password Testing (10)
+  [4]  Network Analysis (15)
+  [5]  Vulnerability Analysis (10)
+  [6]  Exploitation (6)
+  [7]  Forensics (10)
+  [8]  Wireless (5)
+  [9]  Misc/Reporting (10)
+  [10] Install All Core Tools
+  [0]  Exit
+EOF
+    echo ""
+    read -rp "Select: " main_choice
+
+    case $main_choice in
+        1) menu_recon ;;
+        2) menu_web ;;
+        3) menu_password ;;
+        4) menu_network ;;
+        5) menu_vuln ;;
+        6) menu_exploit ;;
+        7) menu_forensics ;;
+        8) menu_wireless ;;
+        9) menu_misc ;;
+        10)
+            echo -e "${YELLOW}[*] Installing all core tools...${RESET}"
+            sudo apt update -qq
+            sudo apt install -y \
+                nmap nikto sqlmap dirb gobuster ffuf dirsearch wpscan \
+                theharvester sublist3r whatweb wafw00f fierce dnsenum \
+                dnsrecon dnsutils whois traceroute mtr-tiny fping masscan \
+                hydra john hashcat medusa crunch hashid hashcat maskprocessor patator \
+                tcpdump tshark dsniff netcat-openbsd socat hping3 \
+                exploitdb lynis chkrootkit rkhunter binwalk steghide \
+                libimage-exiftool-perl foremost sslscan \
+                curl wget git python3 tmux netdiscover arp-scan \
+                cewl droopescan wapiti commix xsser nuclei \
+                sleuthkit testdisk volatility3 bulk-extractor \
+                ettercap-text-only bettercap
+            echo -e "${GREEN}[+] Done!${RESET}"
+            pause ;;
+        0) echo -e "${GREEN}Goodbye!${RESET}"; exit 0 ;;
+        *) echo -e "${RED}Invalid choice${RESET}"; sleep 1 ;;
+    esac
+done
